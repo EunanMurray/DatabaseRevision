@@ -1,0 +1,27 @@
+Programming Requirements
+
+A User Defined Table Type already exists in your database, called BookingList which can be used to pass in a list of member bookings.
+
+Design the program by drawing an IPO chart (Input-Process-Output) to show the flow of your solution
+
+Create a stored procedure (call it InsertBooking) which will insert a new booking into the Bookings table for a member and class.
+
+Create a stored procedure (call it UpdateClassCapacity) which will update the CurrentBookings column in the ClassSchedule table for the given class.
+
+Create a Master stored procedure which will do the following:
+
+
+a. Manage Concurrency Control
+
+    Use appropriate isolation level to prevent phantom reads when booking classes.
+    Your code should be capable of detecting deadlocks and should retry three times if they occur.
+    If after three retries the conflict is still occurring, your master procedure should inform the user to resubmit the booking.
+
+b. Perform the business logic checks above
+
+    Enforce Business Rule 1 (check member eligibility)
+    Enforce Business Rule 2 (check class capacity)
+    Enforce Business Rule 3 (check for duplicate bookings)
+    Handle any constraint violations related to Rule 4
+
+c. Call the stored procedures you've created to insert the booking(s) and update the class capacity.
