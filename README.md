@@ -1,4 +1,4 @@
-# SQL Stored Procedures Exam Cheatsheet
+# SQL Stored Procedures Exam 
 
 ## Key Structure for Master Stored Procedure
 
