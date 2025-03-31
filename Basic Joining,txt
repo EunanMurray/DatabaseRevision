@@ -1,0 +1,163 @@
+Below is a single reference document that explains when and how to use joins and various SQL query techniques for "finding stuff" in your data. This guide is designed to be practical and in line with exam expectations—focusing on clear, efficient querying without using disallowed constructs.
+
+---
+
+# SQL Joins & Query Techniques: A Practical Guide
+
+## 1. Introduction
+
+SQL joins let you combine rows from two or more tables based on related columns. Understanding when and how to use each type of join is crucial for effective querying. This document explains the different join types, when to use them, and offers tips for filtering and retrieving data efficiently.
+
+---
+
+## 2. Types of Joins and When to Use Them
+
+### INNER JOIN
+- **Purpose:** Returns only rows with matching values in both tables.
+- **When to Use:** Retrieve related records that exist in both tables.
+- **Example:**
+  ```sql
+  SELECT a.AuthorName, b.Title
+  FROM Authors a
+  INNER JOIN Books b ON a.AuthorID = b.AuthorID;
+  ```
+
+### LEFT JOIN (LEFT OUTER JOIN)
+- **Purpose:** Returns all rows from the left table and matching rows from the right table. Non-matches return NULL.
+- **When to Use:** When you need all records from the primary table regardless of a match.
+- **Example:**
+  ```sql
+  SELECT c.CustomerName, o.OrderDate
+  FROM Customers c
+  LEFT JOIN Orders o ON c.CustomerID = o.CustomerID;
+  ```
+
+### RIGHT JOIN (RIGHT OUTER JOIN)
+- **Purpose:** Returns all rows from the right table and matching rows from the left table.
+- **When to Use:** When you need all records from a secondary table, even if there’s no corresponding record in the primary table.
+- **Example:**
+  ```sql
+  SELECT o.OrderDate, c.CustomerName
+  FROM Orders o
+  RIGHT JOIN Customers c ON o.CustomerID = c.CustomerID;
+  ```
+
+### FULL OUTER JOIN
+- **Purpose:** Returns rows when there is a match in one of the tables. Unmatched rows from either table will have NULLs.
+- **When to Use:** When you need a complete set of records from both tables.
+- **Example:**
+  ```sql
+  SELECT a.AuthorName, b.Title
+  FROM Authors a
+  FULL OUTER JOIN Books b ON a.AuthorID = b.AuthorID;
+  ```
+
+### CROSS JOIN
+- **Purpose:** Returns the Cartesian product—every row of the first table paired with every row of the second.
+- **When to Use:** Rarely. Use only when you need all possible combinations.
+- **Example:**
+  ```sql
+  SELECT a.AuthorName, c.CategoryName
+  FROM Authors a
+  CROSS JOIN Categories c;
+  ```
+
+### SELF JOIN
+- **Purpose:** A table joins with itself to compare rows.
+- **When to Use:** When dealing with hierarchical or recursive data.
+- **Example:**
+  ```sql
+  SELECT e1.EmployeeName AS Manager, e2.EmployeeName AS Subordinate
+  FROM Employees e1
+  INNER JOIN Employees e2 ON e1.EmployeeID = e2.ManagerID;
+  ```
+
+---
+
+## 3. Best Practices for Finding Data
+
+### Use Filtering with WHERE
+- **Tip:** Apply filters to restrict rows before joining if possible.
+- **Example:**
+  ```sql
+  SELECT * FROM Products WHERE ProductName LIKE '%Hammer%';
+  ```
+
+### Use Aggregation for Summaries
+- **Tip:** Combine GROUP BY with aggregate functions (COUNT, SUM, AVG) to summarize data.
+- **Example:**
+  ```sql
+  SELECT CategoryID, COUNT(*) AS ProductCount
+  FROM Products
+  GROUP BY CategoryID;
+  ```
+
+### Combine Joins with Filters
+- **Tip:** Use joins to bring related data together and filter across tables.
+- **Example:**
+  ```sql
+  SELECT c.CustomerName, o.OrderDate, od.Quantity
+  FROM Customers c
+  INNER JOIN Orders o ON c.CustomerID = o.CustomerID
+  INNER JOIN OrderDetails od ON o.OrderID = od.OrderID
+  WHERE o.OrderDate BETWEEN '2025-01-01' AND '2025-01-31';
+  ```
+
+### Using Subqueries
+- **Tip:** When a join feels too heavy, a subquery can sometimes simplify logic.
+- **Example:**
+  ```sql
+  SELECT ProductName, UnitPrice
+  FROM Products
+  WHERE ProductID IN (SELECT ProductID FROM OrderDetails WHERE OrderID = 123);
+  ```
+
+### Avoiding Cartesian Products
+- **Tip:** Always include a proper join condition to prevent accidental full cross joins.
+
+---
+
+## 4. Advanced Techniques
+
+### Two-Phase Locking & Isolation Levels
+- **Concept:** When data is being updated concurrently, use table hints like `UPDLOCK` and `HOLDLOCK` with your joins (in a transaction) to avoid inconsistent reads.
+- **Example:**
+  ```sql
+  SELECT p.ProductID, p.UnitsInStock
+  FROM Products p WITH (UPDLOCK, HOLDLOCK)
+  WHERE p.ProductID = 1;
+  ```
+
+### Using CASE Expressions
+- **Concept:** When you have multiple conditions on a variable, a CASE expression can "switch" between outcomes.
+- **Example:**
+  ```sql
+  SELECT 
+      ProductID,
+      CASE 
+          WHEN UnitsInStock < 5 THEN 'Low'
+          WHEN UnitsInStock BETWEEN 5 AND 20 THEN 'Medium'
+          ELSE 'High'
+      END AS StockStatus
+  FROM Products;
+  ```
+
+### Rounding with the CEILING Function
+- **Concept:** Use CEILING to round up numbers, for example when calculating totals.
+- **Example:**
+  ```sql
+  SELECT CEILING(SUM(UnitPrice * Quantity)) AS TotalRounded
+  FROM OrderDetails;
+  ```
+
+---
+
+## 5. Conclusion
+
+This guide provides a clear reference for when and how to use SQL joins and related query techniques. It covers the various join types, best practices for filtering and aggregating data, and touches on advanced topics like two-phase locking, CASE expressions, and rounding with CEILING. Use this document to reinforce your understanding and to quickly reference how to "find stuff" in your database queries.
+
+Keep this guide handy as a one-stop reference for your SQL exams and assignments.
+
+--- 
+
+This document should serve as a comprehensive yet practical reference that meets the expectations of your course and exam guidelines without using any disallowed constructs.
