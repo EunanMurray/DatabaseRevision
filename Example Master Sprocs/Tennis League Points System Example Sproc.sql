@@ -123,30 +123,34 @@ BEGIN
             ELSE IF @MatchType = 'Doubles'
             BEGIN
                 -- For doubles, check both players
-                DECLARE @DuesList TABLE (PlayerID INT);
-                
-                -- Find players with unpaid dues
-                INSERT INTO @DuesList
-                SELECT p.PlayerID
-                FROM @Players p
-                JOIN PlayerTBL pt ON p.PlayerID = pt.PlayerID
-                WHERE pt.PlayerMemberShipDues IS NULL 
-                   OR pt.PlayerMemberShipDues <= 0;
-                
-                -- If any players have dues, reject update
-                IF EXISTS (SELECT 1 FROM @DuesList)
-                BEGIN
-                    DECLARE @PlayerList NVARCHAR(100) = '';
-                    
-                    -- Build list of player IDs with dues
-                    SELECT @PlayerList = @PlayerList + 
-                                         CASE WHEN @PlayerList = '' THEN '' ELSE ' and ' END + 
-                                         CAST(PlayerID AS VARCHAR(10))
-                    FROM @DuesList;
-                    
-                    SET @ErrorMessage = 'Sorry membership is due for players ' + @PlayerList;
-                    THROW 50003, @ErrorMessage, 1;
-                END
+                                DECLARE @DuesList TABLE (PlayerID INT);
+                                
+                                -- Find players with unpaid dues
+                                INSERT INTO @DuesList
+                                SELECT p.PlayerID
+                                FROM @Players p
+                                JOIN PlayerTBL pt ON p.PlayerID = pt.PlayerID
+                                WHERE pt.PlayerMemberShipDues IS NULL 
+                                   OR pt.PlayerMemberShipDues <= 0;
+                                
+                                -- Count players with dues
+                                DECLARE @DuesCount INT;
+                                SELECT @DuesCount = COUNT(*) FROM @DuesList;
+                                
+                                -- If any players have dues, reject update
+                                IF @DuesCount > 0
+                                BEGIN
+                                    DECLARE @PlayerList NVARCHAR(100) = '';
+                                    
+                                    -- Build list of player IDs with dues
+                                    SELECT @PlayerList = @PlayerList + 
+                                                         CASE WHEN @PlayerList = '' THEN '' ELSE ' and ' END + 
+                                                         CAST(PlayerID AS VARCHAR(10))
+                                    FROM @DuesList;
+                                    
+                                    SET @ErrorMessage = 'Sorry membership is due for players ' + @PlayerList;
+                                    THROW 50003, @ErrorMessage, 1;
+                                END
             END
             
             -- Update points for all players in the list

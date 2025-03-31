@@ -1,0 +1,15 @@
+CREATE OR ALTER PROCEDURE dbo.GetTopSellingProducts
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    SELECT TOP 5 
+        p.ProductID,
+        p.ProductName,
+        SUM(od.Quantity) AS TotalQuantitySold
+    FROM OrderDetails od
+    INNER JOIN Products p ON od.ProductID = p.ProductID
+    GROUP BY p.ProductID, p.ProductName
+    ORDER BY TotalQuantitySold DESC;
+END;
+GO

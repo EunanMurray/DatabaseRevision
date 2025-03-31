@@ -1,0 +1,31 @@
+CREATE OR ALTER PROCEDURE dbo.RestockProduct
+    @ProductID INT,
+    @Quantity INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    BEGIN TRY
+        BEGIN TRANSACTION;
+        
+        -- Increase the product stock
+        UPDATE Products
+        SET UnitsInStock = UnitsInStock + @Quantity
+        WHERE ProductID = @ProductID;
+        
+        -- Record the restocking in InventoryTransactions
+        INSERT INTO InventoryTransactions (ProductID, QuantityChange, Notes)
+        VALUES (@ProductID, @Quantity, 'Restock');
+        
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
+        DECLARE @ErrMsg NVARCHAR(4000), @ErrSeverity INT;
+        SELECT @ErrMsg = ERROR_MESSAGE(), @ErrSeverity = ERROR_SEVERITY();
+        RAISERROR(@ErrMsg, @ErrSeverity, 1);
+        RETURN;
+    END CATCH
+END;
+GO

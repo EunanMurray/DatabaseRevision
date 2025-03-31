@@ -1,0 +1,137 @@
+CREATE OR ALTER PROCEDURE dbo.MasterOrderProc
+    @CustomerID INT,
+    @OrderDate DATETIME,
+    @OrderDetails dbo.OrderDetailList READONLY,
+    @OrderID INT OUTPUT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    /* 
+       IPO:
+       Input:   CustomerID, OrderDate, and a table-valued parameter of order details (ProductID, Quantity, Discount)
+       Process: Validate that each product has sufficient stock (using a two-phase lock), insert the order header, 
+                insert the order details, update product stock, and compute the total order amount.
+       Output:  Returns the newly generated OrderID.
+    */
+    
+    DECLARE @RetryCount INT = 0;
+    DECLARE @MaxRetries INT = 3;
+    DECLARE @Success BIT = 0;
+    
+    -- Variables for validation using a CASE expression (simulate a switch on conditions)
+    DECLARE @ValidationResult INT;  -- 0 = valid; 1 = insufficient stock
+    DECLARE @InsufficientProductID INT = NULL;
+    
+    -- Variables for reading available stock for validation
+    DECLARE @AvailableStock INT;
+    DECLARE @OrderedQuantity INT;
+    
+    WHILE (@RetryCount < @MaxRetries AND @Success = 0)
+    BEGIN
+        BEGIN TRY
+            SET @RetryCount = @RetryCount + 1;
+            
+            -- Set isolation level to READ COMMITTED.
+            SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+            BEGIN TRANSACTION;
+            
+            /* 
+               Two-Phase Locking Approach: 
+               Read available stock with UPDLOCK and HOLDLOCK to prevent concurrent updates.
+               Validate that each product in the order has enough stock.
+            */
+            DECLARE @ValidationTable TABLE (
+                ProductID INT,
+                OrderedQuantity INT,
+                AvailableStock INT
+            );
+            
+            INSERT INTO @ValidationTable (ProductID, OrderedQuantity, AvailableStock)
+            SELECT od.ProductID,
+                   SUM(od.Quantity) AS OrderedQuantity,
+                   (SELECT TOP 1 p.UnitsInStock 
+                    FROM Products p WITH (UPDLOCK, HOLDLOCK)
+                    WHERE p.ProductID = od.ProductID) AS AvailableStock
+            FROM @OrderDetails od
+            GROUP BY od.ProductID;
+            
+            -- Use a CASE expression to set a validation result
+            SELECT TOP 1 
+                @ValidationResult = CASE 
+                    WHEN OrderedQuantity > AvailableStock THEN 1
+                    ELSE 0
+                END,
+                @InsufficientProductID = ProductID
+            FROM @ValidationTable;
+            
+            IF (@ValidationResult = 1)
+            BEGIN
+                RAISERROR('Insufficient stock for ProductID %d.', 16, 1, @InsufficientProductID);
+                ROLLBACK TRANSACTION;
+                RETURN;
+            END;
+            
+            -- All validations passed. Proceed with order insertion.
+            DECLARE @LocalOrderID INT;
+            EXEC dbo.InsertOrderHeader 
+                @CustomerID = @CustomerID,
+                @OrderDate = @OrderDate,
+                @OrderID = @LocalOrderID OUTPUT;
+            
+            EXEC dbo.InsertOrderDetails 
+                @OrderID = @LocalOrderID,
+                @OrderDetails = @OrderDetails;
+            
+            EXEC dbo.UpdateProductStock 
+                @OrderDetails = @OrderDetails;
+            
+            /* 
+               Calculate Total Amount:
+               For each order detail, compute Quantity * UnitPrice * (1 - Discount) and sum them.
+               Use the CEILING function to round up the computed total (if required by business rules).
+            */
+            DECLARE @TotalAmount DECIMAL(10,2);
+            SELECT @TotalAmount = SUM(od.Quantity * od.UnitPrice * (1 - od.Discount))
+            FROM (
+                SELECT od.ProductID, od.Quantity, p.UnitPrice, od.Discount
+                FROM @OrderDetails od
+                INNER JOIN Products p ON od.ProductID = p.ProductID
+            ) od;
+            
+            SET @TotalAmount = CEILING(@TotalAmount);
+            
+            UPDATE Orders
+            SET TotalAmount = @TotalAmount
+            WHERE OrderID = @LocalOrderID;
+            
+            COMMIT TRANSACTION;
+            SET @OrderID = @LocalOrderID;
+            SET @Success = 1;
+        END TRY
+        BEGIN CATCH
+            IF XACT_STATE() <> 0
+                ROLLBACK TRANSACTION;
+            
+            -- Check for concurrency-related error (e.g. deadlock error 1205)
+            IF ERROR_NUMBER() = 1205
+            BEGIN
+                -- Retry without delay (as WAITFOR/DAYLAY are not allowed)
+                CONTINUE;
+            END
+            ELSE
+            BEGIN
+                DECLARE @ErrMsg NVARCHAR(4000), @ErrSeverity INT;
+                SELECT @ErrMsg = ERROR_MESSAGE(), @ErrSeverity = ERROR_SEVERITY();
+                RAISERROR(@ErrMsg, @ErrSeverity, 1);
+                RETURN;
+            END
+        END CATCH
+    END;
+    
+    IF (@Success = 0)
+    BEGIN
+        RAISERROR('Transaction has been terminated due to high usage – please resubmit the order.', 16, 1);
+    END
+END;
+GO

@@ -1,0 +1,23 @@
+CREATE OR ALTER PROCEDURE dbo.UpdateProductStock
+    @OrderDetails dbo.OrderDetailList READONLY
+AS
+BEGIN
+    SET NOCOUNT ON;
+    BEGIN TRY
+        ;WITH OrderTotals AS (
+            SELECT ProductID, SUM(Quantity) AS TotalOrdered
+            FROM @OrderDetails
+            GROUP BY ProductID
+        )
+        UPDATE p
+        SET p.UnitsInStock = p.UnitsInStock - ot.TotalOrdered
+        FROM Products p
+        INNER JOIN OrderTotals ot ON p.ProductID = ot.ProductID;
+    END TRY
+    BEGIN CATCH
+        DECLARE @ErrMsg NVARCHAR(4000), @ErrSeverity INT;
+        SELECT @ErrMsg = ERROR_MESSAGE(), @ErrSeverity = ERROR_SEVERITY();
+        RAISERROR(@ErrMsg, @ErrSeverity, 1);
+    END CATCH
+END;
+GO

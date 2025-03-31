@@ -1,0 +1,7 @@
+CREATE TYPE dbo.OrderDetailList AS TABLE
+(
+    ProductID INT,
+    Quantity INT,
+    Discount DECIMAL(3,2)
+);
+GO

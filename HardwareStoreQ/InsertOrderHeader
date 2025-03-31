@@ -1,0 +1,19 @@
+CREATE OR ALTER PROCEDURE dbo.InsertOrderHeader
+    @CustomerID INT,
+    @OrderDate DATETIME,
+    @OrderID INT OUTPUT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    BEGIN TRY
+        INSERT INTO Orders (CustomerID, OrderDate, TotalAmount)
+        VALUES (@CustomerID, @OrderDate, 0);
+        SET @OrderID = SCOPE_IDENTITY();
+    END TRY
+    BEGIN CATCH
+        DECLARE @ErrMsg NVARCHAR(4000), @ErrSeverity INT;
+        SELECT @ErrMsg = ERROR_MESSAGE(), @ErrSeverity = ERROR_SEVERITY();
+        RAISERROR(@ErrMsg, @ErrSeverity, 1);
+    END CATCH
+END;
+GO

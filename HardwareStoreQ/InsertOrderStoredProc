@@ -1,0 +1,24 @@
+CREATE OR ALTER PROCEDURE dbo.InsertOrderDetails
+    @OrderID INT,
+    @OrderDetails dbo.OrderDetailList READONLY
+AS
+BEGIN
+    SET NOCOUNT ON;
+    BEGIN TRY
+        INSERT INTO OrderDetails (OrderID, ProductID, Quantity, UnitPrice, Discount)
+        SELECT 
+            @OrderID,
+            od.ProductID,
+            od.Quantity,
+            p.UnitPrice,  
+            od.Discount
+        FROM @OrderDetails od
+        INNER JOIN Products p ON od.ProductID = p.ProductID;
+    END TRY
+    BEGIN CATCH
+        DECLARE @ErrMsg NVARCHAR(4000), @ErrSeverity INT;
+        SELECT @ErrMsg = ERROR_MESSAGE(), @ErrSeverity = ERROR_SEVERITY();
+        RAISERROR(@ErrMsg, @ErrSeverity, 1);
+    END CATCH
+END;
+GO
