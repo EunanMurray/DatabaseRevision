@@ -1,0 +1,19 @@
+USE [BookingDB]
+GO
+/****** Object:  StoredProcedure [dbo].[InsertBookingMembersProc]    Script Date: 31/03/2025 11:28:52 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER   PROCEDURE [dbo].[InsertBookingMembersProc]
+    @BookingID INT,
+    @MemberIDs dbo.MemberIDList READONLY
+AS
+BEGIN
+    -- Input: Booking ID, table of member IDs
+    -- Process: Insert members into booking
+    -- Output: None
+    
+    INSERT INTO BookingMembers (BookingID, MemberID)
+    SELECT @BookingID, MemberID FROM @MemberIDs;
+END;
